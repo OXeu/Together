@@ -18,7 +18,8 @@ mod server;
 mod session;
 
 async fn index() -> impl Responder {
-    NamedFile::open_async("static/index.html").await.unwrap()
+    let static_path = std::env::var("STATIC").unwrap_or("./static".to_owned());
+    NamedFile::open_async(static_path+"/index.html").await.unwrap()
 }
 
 /// Entry point for our websocket route
