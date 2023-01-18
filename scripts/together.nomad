@@ -11,11 +11,13 @@ job "together" {
   group "together" {
     count = 1
     network {
-      # port "http" {}
+      port "http" {
+        to = 8080
+      }
     }
     service {
       name = "together"
-      #port = "http"
+      port = "http"
 
       tags = [
         "traefik.enable=true",
@@ -23,15 +25,15 @@ job "together" {
         "traefik.http.routers.together.tls.certresolver=mresolver",
         "traefik.http.routers.together.entrypoints=https",
         "traefik.http.routers.together.tls=true",
-        "traefik.http.services.together.loadbalancer.server.port=8080"
+        #"traefik.http.services.together.loadbalancer.server.port=8080"
       ]
 
-      #check {
-       # name     = "alive"
-       # type     = "tcp"
-       # interval = "10s"
-       # timeout  = "2s"
-      #}
+      check {
+        name     = "alive"
+        type     = "tcp"
+        interval = "10s"
+        timeout  = "2s"
+      }
     }
 
     task "together" {
