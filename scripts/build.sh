@@ -1,4 +1,5 @@
 #!/bin/bash
+git pull
 cd ..
 cargo build --release
 cd scripts

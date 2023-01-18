@@ -42,7 +42,7 @@ job "together" {
       }
       config {
         image= "thankrain/together:1.0"
-        network_mode = "bridge"
+        network_mode = "host"
       }
     }
   }

@@ -68,7 +68,6 @@ async fn main() -> std::io::Result<()> {
     let port = std::env::var("PORT").unwrap_or("8000".to_owned()).parse::<u16>().unwrap();
     HttpServer::new(move || {
         let static_path = std::env::var("STATIC").unwrap_or("static".to_owned());
-        println!("STATIC:{:?}", static_path);
         App::new()
             .app_data(web::Data::from(app_state.clone()))
             .app_data(web::Data::new(server.clone()))
@@ -78,7 +77,7 @@ async fn main() -> std::io::Result<()> {
             .service(Files::new("/", static_path))
             .wrap(Logger::default())
     })
-    .workers(2)
+    .workers(6)
     .bind(("0.0.0.0", port))?
     .run()
     .await
