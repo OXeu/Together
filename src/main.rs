@@ -18,8 +18,10 @@ mod server;
 mod session;
 
 async fn index() -> impl Responder {
-    let static_path = std::env::var("STATIC").unwrap_or("./static".to_owned());
-    NamedFile::open_async(static_path+"/index.html").await.unwrap()
+    let static_path = std::env::var("STATIC").unwrap_or("static".to_owned());
+    NamedFile::open_async(static_path + "/index.html")
+        .await
+        .unwrap()
 }
 
 /// Entry point for our websocket route
@@ -60,8 +62,12 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("starting HTTP server at http://localhost:8080");
 
+    for (k, v) in std::env::vars() {
+        println!("{}: {}", k, v);
+    }
     HttpServer::new(move || {
-        let static_path = std::env::var("STATIC").unwrap_or("./static".to_owned());
+        let static_path = std::env::var("STATIC").unwrap_or("static".to_owned());
+        println!("STATIC:{:?}", static_path);
         App::new()
             .app_data(web::Data::from(app_state.clone()))
             .app_data(web::Data::new(server.clone()))
