@@ -65,6 +65,7 @@ async fn main() -> std::io::Result<()> {
     for (k, v) in std::env::vars() {
         println!("{}: {}", k, v);
     }
+    let port = std::env::var("PORT").unwrap_or("8000".to_owned()).parse::<u16>().unwrap();
     HttpServer::new(move || {
         let static_path = std::env::var("STATIC").unwrap_or("static".to_owned());
         println!("STATIC:{:?}", static_path);
@@ -78,7 +79,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
     })
     .workers(2)
-    .bind(("0.0.0.0", 8080))?
+    .bind(("0.0.0.0", port))?
     .run()
     .await
 }
