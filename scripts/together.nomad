@@ -11,9 +11,7 @@ job "together" {
   group "together" {
     count = 1
     network {
-      port "http" {
-        to = 8080
-      }
+      port "http" {}
     }
     service {
       name = "together"
@@ -25,7 +23,7 @@ job "together" {
         "traefik.http.routers.together.tls.certresolver=mresolver",
         "traefik.http.routers.together.entrypoints=https",
         "traefik.http.routers.together.tls=true",
-        #"traefik.http.services.together.loadbalancer.server.port=8080"
+        "traefik.http.services.together.loadbalancer.server.port=${NOMAD_Port_http}"
       ]
 
       check {
@@ -40,6 +38,7 @@ job "together" {
       driver = "docker"
       env {
         RUST_LOG = "error"
+        PORT = "${NOMAD_Port_http}"
       }
       config {
         image= "thankrain/together:1.0"
