@@ -26,12 +26,12 @@ job "together" {
         "traefik.http.services.together.loadbalancer.server.port=${NOMAD_PORT_http}"
       ]
 
-      check {
-        name     = "alive"
-        type     = "tcp"
-        interval = "10s"
-        timeout  = "2s"
-      }
+      #check {
+      #  name     = "alive"
+      #  type     = "tcp"
+      #  interval = "10s"
+      #  timeout  = "2s"
+      #}
     }
 
     task "together" {
