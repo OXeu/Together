@@ -19,11 +19,11 @@ job "together" {
 
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.bindle.rule=Host(`together.${var.domain}`)",
-        "traefik.http.routers.bindle.tls.certresolver=mresolver",
-        "traefik.http.routers.bindle.entrypoints=https",
-        "traefik.http.routers.bindle.tls=true",
-        "traefik.http.services.bindle.loadbalancer.server.port=8080"
+        "traefik.http.routers.together.rule=Host(`together.${var.domain}`)",
+        "traefik.http.routers.together.tls.certresolver=mresolver",
+        "traefik.http.routers.together.entrypoints=https",
+        "traefik.http.routers.together.tls=true",
+        "traefik.http.services.together.loadbalancer.server.port=8080"
       ]
 
       #check {
