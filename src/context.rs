@@ -77,16 +77,18 @@ pub enum Code {
     Sys,
     Progress,
     Roomer,
-    Share
+    Share,
+    Speed,
 }
 impl Code {
-    pub fn code(self) -> i32{
+    pub fn code(self) -> i32 {
         match self {
             Code::Msg => 0,
             Code::Sys => 1,
             Code::Progress => 2,
             Code::Roomer => 3,
             Code::Share => 4,
+            Code::Speed => 5,
         }
     }
 }
