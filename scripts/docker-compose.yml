@@ -11,7 +11,9 @@ services:
       - "traefik.http.routers.together.tls.certresolver=mresolver"
     environment:
       - RUST_LOG="error"
-      - PORT="1111"
+      - PORT=1111
+    expose:
+      - 1111
     networks:
       - nets
     restart: unless-stopped
