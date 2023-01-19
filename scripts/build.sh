@@ -8,4 +8,3 @@ cp -R ../static ./static
 docker build -t thankrain/together:1.0 .
 docker push thankrain/together:1.0
 rm -rf together static
-docker-compose up -d

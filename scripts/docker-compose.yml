@@ -1,0 +1,22 @@
+version: "3"
+services:
+  together:
+    image: thankrain/together:1.0
+    container_name: together
+    labels:
+      - "traefik.http.routers.together.rule=Host(`together.kafi.work`)"
+      - "traefik.enable=true"
+      - "traefik.http.routers.together.entrypoints=https"
+      - "traefik.http.routers.together.tls=true"
+      - "traefik.http.routers.together.tls.certresolver=mresolver"
+    environment:
+      - RUST_LOG="error"
+      - PORT="1111"
+    networks:
+      - nets
+    restart: unless-stopped
+
+networks:
+  nets:
+    external:
+      name: nets
