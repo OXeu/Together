@@ -76,7 +76,8 @@ pub enum Code {
     Msg,
     Sys,
     Progress,
-    Roomer
+    Roomer,
+    Share
 }
 impl Code {
     pub fn code(self) -> i32{
@@ -85,6 +86,7 @@ impl Code {
             Code::Sys => 1,
             Code::Progress => 2,
             Code::Roomer => 3,
+            Code::Share => 4,
         }
     }
 }

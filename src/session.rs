@@ -225,6 +225,21 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                 ctx.sys("!!! name is required".to_owned());
                             }
                         }
+                        "/share" => {
+                            if v.len() == 2 {
+                                let msg = Some(v[1].to_owned()).unwrap();
+                                // send message to chat server
+                                self.addr.do_send(server::FullMessage {
+                                    id: self.id,
+                                    name: self.name.clone().unwrap_or(self.id.to_string()),
+                                    code: Code::Share,
+                                    msg,
+                                    room: self.room.clone(),
+                                })
+                            } else {
+                                ctx.sys("!!! share value is required".to_owned());
+                            }
+                        }
                         "/msg" => {
                             if v.len() == 2 {
                                 let msg = Some(v[1].to_owned()).unwrap();

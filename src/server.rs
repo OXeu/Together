@@ -216,6 +216,28 @@ impl Handler<ClientMessage> for ChatServer {
     }
 }
 
+/// Send message to specific room
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct FullMessage {
+    /// Id of the client session
+    pub id: usize,
+    pub name: String,
+    /// Peer message
+    pub code: Code,
+    pub msg: String,
+    /// Room name
+    pub room: String,
+}
+/// Handler for Message message.
+impl Handler<FullMessage> for ChatServer {
+    type Result = ();
+
+    fn handle(&mut self, msg: FullMessage, _: &mut Context<Self>) {
+        self.send_message(&msg.room, &Data::full(msg.code, msg.msg), msg.id);
+    }
+}
+
 #[derive(Message)]
 #[rtype(result = "Option<(Code,String)>")]
 pub struct Progress {
@@ -322,7 +344,7 @@ impl Handler<Join> for ChatServer {
         }
         // send message to other users
         for room in rooms {
-            self.send_message(&room, &Data::sys("Someone disconnected".to_owned()), 0);
+            self.send_message(&room, &Data::sys(format!("{}@{} disconnected",name,id)), 0);
         }
         let mut roomer = false;
         self.rooms
@@ -335,7 +357,7 @@ impl Handler<Join> for ChatServer {
                 Room::new(id)
             });
 
-        self.send_message(&name, &Data::sys("Someone connected".to_owned()), id);
+        self.send_message(&name, &Data::sys(format!("{}@{} connected",name,id)), id);
         roomer
     }
 }
