@@ -248,10 +248,12 @@ impl Handler<ClientMessage> for ChatServer {
     type Result = ();
 
     fn handle(&mut self, msg: ClientMessage, _: &mut Context<Self>) {
+        let user = self.get_user(msg.id);
         self.send_message(
             &msg.room,
             &Data::msg(
-                self.get_user(msg.id).name.unwrap_or("".to_string()).clone(),
+                user.name.unwrap_or("".to_string()).clone(),
+                user.avatar.unwrap_or("".to_string()).clone(),
                 msg.msg,
             ),
             msg.id,
