@@ -175,19 +175,18 @@ impl Handler<Connect> for ChatServer {
 
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct Login(pub Option<String>, pub Option<String>);
+pub struct Login(pub usize, pub Option<String>, pub Option<String>);
 impl Handler<Login> for ChatServer {
     type Result = ();
 
     fn handle(&mut self, msg: Login, _: &mut Context<Self>) -> Self::Result {
-        // notify all users in same room
-        // self.send_message("main", format!("{:?} joined",msg.addr).as_str(), 0);
-        // register session with random id
-        let id = self.rng.gen::<usize>();
-        self.sessions.entry(id).and_modify(|(_, (name, avatar))| {
-            *name = msg.0;
-            *avatar = msg.1;
-        });
+        self.sessions
+            .entry(msg.0)
+            .and_modify(|(_, (name, avatar))| {
+                *name = msg.1;
+                *avatar = msg.2;
+            });
+        println!("User Login:{:?}", self.get_user(msg.0))
     }
 }
 

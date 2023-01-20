@@ -18,7 +18,7 @@ mod server;
 mod session;
 
 async fn index() -> impl Responder {
-    let static_path = std::env::var("STATIC").unwrap_or("static".to_owned());
+    let static_path = std::env::var("STATIC").unwrap_or("./static".to_owned());
     NamedFile::open_async(static_path + "/index.html")
         .await
         .unwrap()
@@ -59,10 +59,10 @@ async fn main() -> std::io::Result<()> {
     // start chat server actor
     let server = server::ChatServer::new(app_state.clone()).start();
 
-    log::info!("starting HTTP server at http://localhost:8080");
+    log::info!("starting HTTP server at http://127.0.0.1:8000");
     let port = std::env::var("PORT").unwrap_or("8000".to_owned()).parse::<u16>().unwrap();
     HttpServer::new(move || {
-        let static_path = std::env::var("STATIC").unwrap_or("static".to_owned());
+        let static_path = std::env::var("STATIC").unwrap_or("./static".to_owned());
         App::new()
             .app_data(web::Data::from(app_state.clone()))
             .app_data(web::Data::new(server.clone()))

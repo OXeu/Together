@@ -229,9 +229,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                             if v.len() == 2 {
                                 let value: Vec<&str> = v[1].splitn(2, " ").collect();
                                 if value.len() == 2 {
-                                    let name = Some(v[0].to_owned());
-                                    let avatar = Some(v[1].to_owned());
-                                    self.addr.do_send(Login(name,avatar));
+                                    let name = Some(value[0].to_owned());
+                                    let avatar = Some(value[1].to_owned());
+                                    self.addr.do_send(Login(self.id, name, avatar));
                                 } else {
                                     ctx.sys("!!! avatar is required".to_owned());
                                 }
