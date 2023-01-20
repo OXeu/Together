@@ -201,7 +201,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                         }
                         "/progress" => {
                             if v.len() == 2 {
-                                let value: Vec<&str> = v[1].splitn(2, " ").collect();
+                                let value: Vec<&str> = v[1].splitn(2, "\n").collect();
                                 if value.len() == 2 {
                                     self.addr
                                         .send(server::Progress {
@@ -227,7 +227,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                         }
                         "/login" => {
                             if v.len() == 2 {
-                                let value: Vec<&str> = v[1].splitn(2, " ").collect();
+                                let value: Vec<&str> = v[1].splitn(2, "\n").collect();
                                 if value.len() == 2 {
                                     let name = Some(value[0].to_owned());
                                     let avatar = Some(value[1].to_owned());
