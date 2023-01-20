@@ -1,198 +1,239 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Chat!</title>
 
-    <style>
-      :root {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-          Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        font-size: 18px;
+<head>
+  <meta charset="utf-8" />
+  <title>在线调试</title>
+
+  <style>
+    :root {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      font-size: 18px;
+    }
+
+    input[type='text'] {
+      font-size: inherit;
+    }
+
+    #log {
+      width: 30em;
+      height: 20em;
+      overflow: auto;
+      margin: 0.5em 0;
+
+      border: 1px solid black;
+    }
+
+    #status {
+      padding: 0 0.2em;
+    }
+
+    #text {
+      width: 17em;
+      padding: 0.5em;
+    }
+
+    .msg {
+      margin: 0;
+      padding: 0.25em 0.5em;
+    }
+
+    .msg--status {
+      /* a light yellow */
+      background-color: #ffffc9;
+    }
+
+    .msg--message {
+      /* a light blue */
+      background-color: #d2f4ff;
+    }
+
+    .msg--error {
+      background-color: pink;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>在线调试</h1>
+
+  <div>
+    <button id="connect">连接</button>
+    <span>连接状态:</span>
+    <span id="status">离线</span>
+  </div>
+
+  <div id="log"></div>
+
+  <form id="chatform">
+    <input type="text" id="text" />
+    <input type="submit" id="send" />
+  </form>
+
+  <hr />
+
+  <section>
+    <h2>命令列表</h2>
+    <table style="border-spacing: 0.5em">
+      <tr>
+        <td>
+          <code>/list</code>
+        </td>
+        <td>列出所有房间</td>
+      </tr>
+      <tr>
+        <td>
+          <code>/join name</code>
+        </td>
+        <td>加入房间，如果该房间未创建则创建</td>
+      </tr>
+      <tr>
+        <td>
+          <code>/login name avatar</code>
+        </td>
+        <td>设置用户昵称与头像</td>
+      </tr>
+      <tr>
+        <td>
+          <code>/msg Some Message</code>
+        </td>
+        <td>向房间内的其他用户发消息</td>
+      </tr>
+      <tr>
+        <td>
+          <code>/members</code>
+        </td>
+        <td>查看房间内的所有成员</td>
+      </tr>
+      <tr>
+        <td>
+          <code>/count</code>
+        </td>
+        <td>返回房间内在线人数</td>
+      </tr>
+      <tr>
+        <td>
+          <code>/progress progress speed</code>
+        </td>
+        <td>向房间内的其他用户发送进度与速度信息，仅房主可用</td>
+      </tr>
+      </tr>
+      <tr>
+        <td>
+          <code>/speed speed</code>
+        </td>
+        <td>向房间内的其他用户发送速度信息，仅房主可用</td>
+      </tr>
+      <tr>
+        <td>
+          <code>/share link</code>
+        </td>
+        <td>向房间内的其他用户分享视频源</td>
+      </tr>
+    </table>
+    <p>返回格式：[int,data]</p>
+    <p>用户消息Code::Msg => 0,<br/>
+              系统消息Code::Sys => 1,<br/>
+              进度消息Code::Progress => 2,<br/>
+              是否房主消息Code::Roomer => 3,<br/>
+              分享消息Code::Share => 4,<br/>
+              速度消息Code::Speed => 5,<br/>
+              成员列表消息Code::Members => 6,</p>
+  </section>
+
+  <script>
+    const $status = document.querySelector('#status')
+    const $connectButton = document.querySelector('#connect')
+    const $log = document.querySelector('#log')
+    const $form = document.querySelector('#chatform')
+    const $input = document.querySelector('#text')
+
+    /** @type {WebSocket | null} */
+    var socket = null
+
+    function log(msg, type = 'status') {
+      $log.innerHTML += `<p class="msg msg--${type}">${msg}</p>`
+      $log.scrollTop += 1000
+    }
+
+    function connect() {
+      disconnect()
+
+      const { location } = window
+
+      const proto = location.protocol.startsWith('https') ? 'wss' : 'ws'
+      const wsUri = `${proto}://${location.host}/ws`
+
+      log('Connecting...')
+      socket = new WebSocket(wsUri)
+
+      socket.onopen = () => {
+        log('Connected')
+        updateConnectionStatus()
       }
 
-      input[type='text'] {
-        font-size: inherit;
+      socket.onmessage = (ev) => {
+        log('Received: ' + ev.data, 'message')
       }
 
-      #log {
-        width: 30em;
-        height: 20em;
-        overflow: auto;
-        margin: 0.5em 0;
-
-        border: 1px solid black;
+      socket.onclose = () => {
+        log('Disconnected')
+        socket = null
+        updateConnectionStatus()
       }
+    }
 
-      #status {
-        padding: 0 0.2em;
-      }
-
-      #text {
-        width: 17em;
-        padding: 0.5em;
-      }
-
-      .msg {
-        margin: 0;
-        padding: 0.25em 0.5em;
-      }
-
-      .msg--status {
-        /* a light yellow */
-        background-color: #ffffc9;
-      }
-
-      .msg--message {
-        /* a light blue */
-        background-color: #d2f4ff;
-      }
-
-      .msg--error {
-        background-color: pink;
-      }
-    </style>
-  </head>
-
-  <body>
-    <h1>Chat!</h1>
-
-    <div>
-      <button id="connect">Connect</button>
-      <span>Status:</span>
-      <span id="status">disconnected</span>
-    </div>
-
-    <div id="log"></div>
-
-    <form id="chatform">
-      <input type="text" id="text" />
-      <input type="submit" id="send" />
-    </form>
-
-    <hr />
-
-    <section>
-      <h2>Commands</h2>
-      <table style="border-spacing: 0.5em">
-        <tr>
-          <td>
-            <code>/list</code>
-          </td>
-          <td>list all available rooms</td>
-        </tr>
-        <tr>
-          <td>
-            <code>/join name</code>
-          </td>
-          <td>join room, if room does not exist, create new one</td>
-        </tr>
-        <tr>
-          <td>
-            <code>/name name</code>
-          </td>
-          <td>set session name</td>
-        </tr>
-        <tr>
-          <td>
-            <code>some message</code>
-          </td>
-          <td>just string, send message to all peers in same room</td>
-        </tr>
-      </table>
-    </section>
-
-    <script>
-      const $status = document.querySelector('#status')
-      const $connectButton = document.querySelector('#connect')
-      const $log = document.querySelector('#log')
-      const $form = document.querySelector('#chatform')
-      const $input = document.querySelector('#text')
-
-      /** @type {WebSocket | null} */
-      var socket = null
-
-      function log(msg, type = 'status') {
-        $log.innerHTML += `<p class="msg msg--${type}">${msg}</p>`
-        $log.scrollTop += 1000
-      }
-
-      function connect() {
-        disconnect()
-
-        const { location } = window
-
-        const proto = location.protocol.startsWith('https') ? 'wss' : 'ws'
-        const wsUri = `${proto}://${location.host}/ws`
-
-        log('Connecting...')
-        socket = new WebSocket(wsUri)
-
-        socket.onopen = () => {
-          log('Connected')
-          updateConnectionStatus()
-        }
-
-        socket.onmessage = (ev) => {
-          log('Received: ' + ev.data, 'message')
-        }
-
-        socket.onclose = () => {
-          log('Disconnected')
-          socket = null
-          updateConnectionStatus()
-        }
-      }
-
-      function disconnect() {
-        if (socket) {
-          log('Disconnecting...')
-          socket.close()
-          socket = null
-
-          updateConnectionStatus()
-        }
-      }
-
-      function updateConnectionStatus() {
-        if (socket) {
-          $status.style.backgroundColor = 'transparent'
-          $status.style.color = 'green'
-          $status.textContent = `connected`
-          $connectButton.innerHTML = 'Disconnect'
-          $input.focus()
-        } else {
-          $status.style.backgroundColor = 'red'
-          $status.style.color = 'white'
-          $status.textContent = 'disconnected'
-          $connectButton.textContent = 'Connect'
-        }
-      }
-
-      $connectButton.addEventListener('click', () => {
-        if (socket) {
-          disconnect()
-        } else {
-          connect()
-        }
+    function disconnect() {
+      if (socket) {
+        log('Disconnecting...')
+        socket.close()
+        socket = null
 
         updateConnectionStatus()
-      })
+      }
+    }
 
-      $form.addEventListener('submit', (ev) => {
-        ev.preventDefault()
-
-        const text = $input.value
-
-        log('Sending: ' + text)
-        socket.send(text)
-
-        $input.value = ''
+    function updateConnectionStatus() {
+      if (socket) {
+        $status.style.backgroundColor = 'transparent'
+        $status.style.color = 'green'
+        $status.textContent = `在线`
+        $connectButton.innerHTML = '断开连接'
         $input.focus()
-      })
+      } else {
+        $status.style.backgroundColor = 'red'
+        $status.style.color = 'white'
+        $status.textContent = '离线'
+        $connectButton.textContent = '连接'
+      }
+    }
+
+    $connectButton.addEventListener('click', () => {
+      if (socket) {
+        disconnect()
+      } else {
+        connect()
+      }
 
       updateConnectionStatus()
+    })
 
-    </script>
-  </body>
+    $form.addEventListener('submit', (ev) => {
+      ev.preventDefault()
+
+      const text = $input.value
+
+      log('Sending: ' + text)
+      socket.send(text)
+
+      $input.value = ''
+      $input.focus()
+    })
+
+    updateConnectionStatus()
+
+  </script>
+</body>
+
 </html>
