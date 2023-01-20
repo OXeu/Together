@@ -79,6 +79,7 @@ pub enum Code {
     Roomer,
     Share,
     Speed,
+    Members,
 }
 impl Code {
     pub fn code(self) -> i32 {
@@ -89,6 +90,7 @@ impl Code {
             Code::Roomer => 3,
             Code::Share => 4,
             Code::Speed => 5,
+            Code::Members => 6,
         }
     }
 }

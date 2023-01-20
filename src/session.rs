@@ -5,7 +5,7 @@ use actix_web_actors::ws;
 
 use crate::{
     context::{Code, Msg},
-    server,
+    server::{self, Login},
 };
 
 /// How often heartbeat pings are sent
@@ -25,9 +25,6 @@ pub struct WsChatSession {
 
     /// joined room
     pub room: String,
-
-    /// peer name
-    pub name: Option<String>,
 
     /// Chat server
     pub addr: Addr<server::ChatServer>,
@@ -77,6 +74,7 @@ impl Actor for WsChatSession {
         self.addr
             .send(server::Connect {
                 addr: addr.recipient(),
+                user: (None, None),
             })
             .into_actor(self)
             .then(|res, act, ctx| {
@@ -156,16 +154,19 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                         "/join" => {
                             if v.len() == 2 {
                                 self.room = v[1].to_owned();
-                                self.addr.send(server::Join {
-                                    id: self.id,
-                                    name: self.room.clone(),
-                                }).into_actor(self).then(|res,_,ctx|{
-                                    if let Ok(v) = res {
-                                        ctx.full(Code::Roomer,v);
-                                    }
-                                    fut::ready(())  
-                                })
-                                .wait(ctx);
+                                self.addr
+                                    .send(server::Join {
+                                        id: self.id,
+                                        name: self.room.clone(),
+                                    })
+                                    .into_actor(self)
+                                    .then(|res, _, ctx| {
+                                        if let Ok(v) = res {
+                                            ctx.full(Code::Roomer, v);
+                                        }
+                                        fut::ready(())
+                                    })
+                                    .wait(ctx);
                                 ctx.sys("joined".to_owned());
                             } else {
                                 ctx.sys("!!! room name is required".to_owned());
@@ -192,7 +193,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                 .into_actor(self)
                                 .then(|res, _, ctx| {
                                     if let Ok(Some(v)) = res {
-                                        ctx.sys(v);
+                                        ctx.full(Code::Members, v);
                                     }
                                     fut::ready(())
                                 })
@@ -200,27 +201,40 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                         }
                         "/progress" => {
                             if v.len() == 2 {
-                                self.addr
-                                    .send(server::Progress {
-                                        id: self.id,
-                                        progress: v[1].to_string(),
-                                        room: self.room.clone(),
-                                    })
-                                    .into_actor(self)
-                                    .then(|res, _, ctx| {
-                                        if let Ok(Some(v)) = res {
-                                            ctx.full(v.0, v.1);
-                                        }
-                                        fut::ready(())
-                                    })
-                                    .wait(ctx);
+                                let value: Vec<&str> = v[1].splitn(2, " ").collect();
+                                if value.len() == 2 {
+                                    self.addr
+                                        .send(server::Progress {
+                                            id: self.id,
+                                            progress: value[0].to_owned(),
+                                            speed: value[1].to_owned(),
+                                            room: self.room.clone(),
+                                        })
+                                        .into_actor(self)
+                                        .then(|res, _, ctx| {
+                                            if let Ok(Some(v)) = res {
+                                                ctx.full(v.0, v.1);
+                                            }
+                                            fut::ready(())
+                                        })
+                                        .wait(ctx);
+                                } else {
+                                    ctx.sys("!!! speed is required".to_owned());
+                                }
                             } else {
                                 ctx.sys("!!! Progress is required".to_owned());
                             }
                         }
-                        "/name" => {
+                        "/login" => {
                             if v.len() == 2 {
-                                self.name = Some(v[1].to_owned());
+                                let value: Vec<&str> = v[1].splitn(2, " ").collect();
+                                if value.len() == 2 {
+                                    let name = Some(v[0].to_owned());
+                                    let avatar = Some(v[1].to_owned());
+                                    self.addr.do_send(Login(name,avatar));
+                                } else {
+                                    ctx.sys("!!! avatar is required".to_owned());
+                                }
                             } else {
                                 ctx.sys("!!! name is required".to_owned());
                             }
@@ -231,7 +245,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                 // send message to chat server
                                 self.addr.do_send(server::FullMessage {
                                     id: self.id,
-                                    name: self.name.clone().unwrap_or(self.id.to_string()),
                                     code: Code::Share,
                                     msg,
                                     room: self.room.clone(),
@@ -246,7 +259,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                 // send message to chat server
                                 self.addr.do_send(server::FullMessage {
                                     id: self.id,
-                                    name: self.name.clone().unwrap_or(self.id.to_string()),
                                     code: Code::Speed,
                                     msg,
                                     room: self.room.clone(),
@@ -261,7 +273,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                 // send message to chat server
                                 self.addr.do_send(server::ClientMessage {
                                     id: self.id,
-                                    name: self.name.clone().unwrap_or(self.id.to_string()),
                                     msg,
                                     room: self.room.clone(),
                                 })

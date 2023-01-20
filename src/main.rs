@@ -35,7 +35,6 @@ async fn chat_route(
             id: 0,
             hb: Instant::now(),
             room: "".to_owned(), //Empty Room
-            name: None,
             addr: srv.get_ref().clone(),
         },
         &req,
@@ -61,10 +60,6 @@ async fn main() -> std::io::Result<()> {
     let server = server::ChatServer::new(app_state.clone()).start();
 
     log::info!("starting HTTP server at http://localhost:8080");
-
-    for (k, v) in std::env::vars() {
-        println!("{}: {}", k, v);
-    }
     let port = std::env::var("PORT").unwrap_or("8000".to_owned()).parse::<u16>().unwrap();
     HttpServer::new(move || {
         let static_path = std::env::var("STATIC").unwrap_or("static".to_owned());

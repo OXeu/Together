@@ -27,6 +27,7 @@ pub struct Message(pub String);
 #[rtype(usize)]
 pub struct Connect {
     pub addr: Recipient<Message>,
+    pub user: (Option<String>, Option<String>),
 }
 
 /// Session is disconnected
@@ -42,7 +43,6 @@ pub struct Disconnect {
 pub struct ClientMessage {
     /// Id of the client session
     pub id: usize,
-    pub name: String,
     /// Peer message
     pub msg: String,
     /// Room name
@@ -66,7 +66,7 @@ impl actix::Message for Count {
 /// Implementation is very naïve.
 #[derive(Debug)]
 pub struct ChatServer {
-    sessions: HashMap<usize, Recipient<Message>>,
+    sessions: HashMap<usize, (Recipient<Message>, (Option<String>, Option<String>))>,
     rooms: HashMap<String, Room>,
     rng: ThreadRng,
     visitor_count: Arc<AtomicUsize>,
@@ -76,6 +76,17 @@ pub struct ChatServer {
 pub struct Room {
     pub roomer: usize,
     pub members: HashSet<usize>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RoomInfo {
+    pub roomer: User,
+    pub members: Vec<User>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct User {
+    pub id: usize,
+    pub name: Option<String>,
+    pub avatar: Option<String>,
 }
 
 impl Room {
@@ -110,7 +121,7 @@ impl ChatServer {
         if let Some(Room { roomer: _, members }) = self.rooms.get(room) {
             for id in members {
                 if *id != skip_id {
-                    if let Some(addr) = self.sessions.get(id) {
+                    if let Some((addr, _)) = self.sessions.get(id) {
                         addr.do_send(Message(message.to_owned()));
                     }
                 }
@@ -119,7 +130,7 @@ impl ChatServer {
     }
     /// Send message to specific user
     fn send(&self, message: &str, uid: usize) {
-        if let Some(addr) = self.sessions.get(&uid) {
+        if let Some((addr, _)) = self.sessions.get(&uid) {
             addr.do_send(Message(message.to_owned()));
         }
     }
@@ -146,7 +157,7 @@ impl Handler<Connect> for ChatServer {
 
         // register session with random id
         let id = self.rng.gen::<usize>();
-        self.sessions.insert(id, msg.addr);
+        self.sessions.insert(id, (msg.addr, msg.user));
 
         // auto join session to main room
         // self.rooms
@@ -162,12 +173,31 @@ impl Handler<Connect> for ChatServer {
     }
 }
 
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Login(pub Option<String>, pub Option<String>);
+impl Handler<Login> for ChatServer {
+    type Result = ();
+
+    fn handle(&mut self, msg: Login, _: &mut Context<Self>) -> Self::Result {
+        // notify all users in same room
+        // self.send_message("main", format!("{:?} joined",msg.addr).as_str(), 0);
+        // register session with random id
+        let id = self.rng.gen::<usize>();
+        self.sessions.entry(id).and_modify(|(_, (name, avatar))| {
+            *name = msg.0;
+            *avatar = msg.1;
+        });
+    }
+}
+
 /// Handler for Disconnect message.
 impl Handler<Disconnect> for ChatServer {
     type Result = ();
 
     fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
-        println!("{} disconnected", msg.id);
+        let user = self.get_user(msg.id);
+        println!("{:?} disconnected", user.name.clone());
 
         let mut rooms: Vec<String> = Vec::new();
         let mut empty_rooms: Vec<String> = Vec::new();
@@ -199,7 +229,14 @@ impl Handler<Disconnect> for ChatServer {
         self.visitor_count.fetch_min(1, Ordering::SeqCst);
         // send message to other users
         for room in rooms {
-            self.send_message(&room, &Data::sys("Someone disconnected".to_owned()), 0);
+            self.send_message(
+                &room,
+                &Data::sys(format!(
+                    "{} 退出房间",
+                    user.name.clone().unwrap_or(msg.id.to_string())
+                )),
+                0,
+            );
         }
         for room in empty_rooms {
             self.rooms.remove(room.as_str());
@@ -212,7 +249,14 @@ impl Handler<ClientMessage> for ChatServer {
     type Result = ();
 
     fn handle(&mut self, msg: ClientMessage, _: &mut Context<Self>) {
-        self.send_message(&msg.room, &Data::msg(msg.name, msg.msg), msg.id);
+        self.send_message(
+            &msg.room,
+            &Data::msg(
+                self.get_user(msg.id).name.unwrap_or("".to_string()).clone(),
+                msg.msg,
+            ),
+            msg.id,
+        );
     }
 }
 
@@ -222,7 +266,6 @@ impl Handler<ClientMessage> for ChatServer {
 pub struct FullMessage {
     /// Id of the client session
     pub id: usize,
-    pub name: String,
     /// Peer message
     pub code: Code,
     pub msg: String,
@@ -247,6 +290,7 @@ pub struct Progress {
     pub room: String,
     /// Progress
     pub progress: String,
+    pub speed: String,
 }
 /// Handler for Message message.
 impl Handler<Progress> for ChatServer {
@@ -258,7 +302,11 @@ impl Handler<Progress> for ChatServer {
                 if v.members.len() > 0 {
                     if v.roomer == msg.id {
                         // 房主,允许广播进度
-                        self.send_message(&msg.room, &Data::progress(msg.progress), msg.id);
+                        self.send_message(
+                            &msg.room,
+                            &Data::progress((msg.progress, msg.speed)),
+                            msg.id,
+                        );
                         None
                     } else {
                         Some((Code::Sys, "NOT_ROOMER".to_string()))
@@ -288,14 +336,14 @@ impl Handler<ListRooms> for ChatServer {
 }
 
 #[derive(Message)]
-#[rtype(result = "Option<Room>")]
+#[rtype(result = "Option<RoomInfo>")]
 pub struct ListMembers {
     pub room_id: String,
 }
 
 /// Handler for `ListRooms` message.
 impl Handler<ListMembers> for ChatServer {
-    type Result = Option<Room>;
+    type Result = Option<RoomInfo>;
 
     fn handle(
         &mut self,
@@ -303,9 +351,30 @@ impl Handler<ListMembers> for ChatServer {
         _: &mut Context<Self>,
     ) -> Self::Result {
         if let Some(room) = self.rooms.get(&room_id) {
-            Some(room.clone())
+            Some(RoomInfo {
+                roomer: self.get_user(room.roomer),
+                members: room.members.iter().map(|id| self.get_user(*id)).collect(),
+            })
         } else {
             None
+        }
+    }
+}
+
+impl ChatServer {
+    fn get_user(&self, id: usize) -> User {
+        if let Some((_, (name, avatar))) = self.sessions.get(&id) {
+            User {
+                id,
+                name: name.to_owned(),
+                avatar: avatar.to_owned(),
+            }
+        } else {
+            User {
+                id,
+                name: None,
+                avatar: None,
+            }
         }
     }
 }
@@ -335,6 +404,7 @@ impl Handler<Join> for ChatServer {
 
     fn handle(&mut self, msg: Join, _: &mut Context<Self>) -> Self::Result {
         let Join { id, name } = msg;
+        let user = self.get_user(id);
         let mut rooms = Vec::new();
         // remove session from all rooms
         for (n, Room { roomer: _, members }) in &mut self.rooms {
@@ -344,7 +414,14 @@ impl Handler<Join> for ChatServer {
         }
         // send message to other users
         for room in rooms {
-            self.send_message(&room, &Data::sys(format!("{}@{} disconnected",name,id)), 0);
+            self.send_message(
+                &room,
+                &Data::sys(format!(
+                    "{} 退出房间",
+                    user.name.clone().unwrap_or(id.to_string())
+                )),
+                0,
+            );
         }
         let mut roomer = false;
         self.rooms
@@ -357,7 +434,14 @@ impl Handler<Join> for ChatServer {
                 Room::new(id)
             });
 
-        self.send_message(&name, &Data::sys(format!("{}@{} connected",name,id)), id);
+        self.send_message(
+            &name,
+            &Data::sys(format!(
+                "{} 进入房间",
+                user.name.clone().unwrap_or(id.to_string())
+            )),
+            id,
+        );
         roomer
     }
 }
