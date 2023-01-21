@@ -167,7 +167,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                         fut::ready(())
                                     })
                                     .wait(ctx);
-                                ctx.sys("已加入房间".to_owned());
+                                ctx.sys("您已加入房间".to_owned());
                             } else {
                                 ctx.sys("!!! room name is required".to_owned());
                             }
@@ -233,10 +233,10 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                     let avatar = Some(value[1].to_owned());
                                     self.addr.do_send(Login(self.id, name, avatar));
                                 } else {
-                                    ctx.sys("!!! avatar is required".to_owned());
+                                    ctx.sys("头像不能为空".to_owned());
                                 }
                             } else {
-                                ctx.sys("!!! name is required".to_owned());
+                                ctx.sys("昵称不能为空".to_owned());
                             }
                         }
                         "/share" => {
@@ -250,7 +250,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                     room: self.room.clone(),
                                 })
                             } else {
-                                ctx.sys("!!! share value is required".to_owned());
+                                ctx.sys("分享值不能为空".to_owned());
                             }
                         }
                         "/speed" => {
@@ -264,7 +264,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                     room: self.room.clone(),
                                 })
                             } else {
-                                ctx.sys("!!! share value is required".to_owned());
+                                ctx.sys("速度值不能为空".to_owned());
                             }
                         }
                         "/msg" => {
@@ -277,7 +277,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                     room: self.room.clone(),
                                 })
                             } else {
-                                ctx.sys("!!! msg is required".to_owned());
+                                ctx.sys("消息不能为空".to_owned());
                             }
                         }
                         _ => ctx.sys(format!("!!! unknown command: {m:?}")),
