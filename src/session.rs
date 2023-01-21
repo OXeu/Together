@@ -167,7 +167,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                         fut::ready(())
                                     })
                                     .wait(ctx);
-                                ctx.sys("joined".to_owned());
+                                ctx.sys("已加入房间".to_owned());
                             } else {
                                 ctx.sys("!!! room name is required".to_owned());
                             }
