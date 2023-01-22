@@ -22,8 +22,8 @@ where
         self.text(serde_json::to_string(&data).unwrap());
     }
 
-    fn msg(&mut self, user: String, avatar: String, msg: String) {
-        let data = Data(Code::Msg.code(), MsgData(user, avatar, msg));
+    fn msg(&mut self, user: String, msg: String) {
+        let data = Data(Code::Msg.code(), MsgData(user, msg));
         self.text(serde_json::to_string(&data).unwrap());
     }
 }
@@ -35,7 +35,7 @@ where
     fn full(&mut self, code: Code, msg: T);
     fn sys(&mut self, msg: T);
     fn progress(&mut self, msg: T);
-    fn msg(&mut self, user: String, avatar: String, msg: String);
+    fn msg(&mut self, user: String, msg: String);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,7 +44,7 @@ where
     T: Serialize;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MsgData(pub String, pub String, pub String);
+pub struct MsgData(pub String, pub String);
 
 impl<T> Data<T>
 where
@@ -66,8 +66,8 @@ where
     }
 }
 impl Data<MsgData> {
-    pub fn msg(user: String, avatar: String, msg: String) -> String {
-        let data = Data(Code::Msg.code(), MsgData(user, avatar, msg));
+    pub fn msg(user: String, msg: String) -> String {
+        let data = Data(Code::Msg.code(), MsgData(user, msg));
         serde_json::to_string(&data).unwrap()
     }
 }

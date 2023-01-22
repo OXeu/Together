@@ -252,8 +252,7 @@ impl Handler<ClientMessage> for ChatServer {
         self.send_message(
             &msg.room,
             &Data::msg(
-                user.name.unwrap_or("".to_string()).clone(),
-                user.avatar.unwrap_or("".to_string()).clone(),
+                user.id.to_string(),
                 msg.msg,
             ),
             msg.id,
