@@ -32,7 +32,7 @@ async fn chat_route(
 ) -> Result<HttpResponse, Error> {
     ws::start(
         session::WsChatSession {
-            id: 0,
+            id: "".to_string(),
             hb: Instant::now(),
             room: "".to_owned(), //Empty Room
             addr: srv.get_ref().clone(),

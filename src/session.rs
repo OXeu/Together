@@ -17,7 +17,7 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 #[derive(Debug)]
 pub struct WsChatSession {
     /// unique session id
-    pub id: usize,
+    pub id: String,
 
     /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
     /// otherwise we drop connection.
@@ -42,7 +42,7 @@ impl WsChatSession {
                 println!("Websocket Client heartbeat failed, disconnecting!");
 
                 // notify chat server
-                act.addr.do_send(server::Disconnect { id: act.id });
+                act.addr.do_send(server::Disconnect { id: act.id.clone() });
 
                 // stop actor
                 ctx.stop();
@@ -90,7 +90,7 @@ impl Actor for WsChatSession {
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
         // notify chat server
-        self.addr.do_send(server::Disconnect { id: self.id });
+        self.addr.do_send(server::Disconnect { id: self.id.clone() });
         Running::Stop
     }
 }
@@ -156,7 +156,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                 self.room = v[1].to_owned();
                                 self.addr
                                     .send(server::Join {
-                                        id: self.id,
+                                        id: self.id.clone(),
                                         name: self.room.clone(),
                                     })
                                     .into_actor(self)
@@ -205,7 +205,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                 if value.len() == 2 {
                                     self.addr
                                         .send(server::Progress {
-                                            id: self.id,
+                                            id: self.id.clone(),
                                             progress: value[0].to_owned(),
                                             speed: value[1].to_owned(),
                                             room: self.room.clone(),
@@ -231,7 +231,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                 if value.len() == 2 {
                                     let name = Some(value[0].to_owned());
                                     let avatar = Some(value[1].to_owned());
-                                    self.addr.do_send(Login(self.id, name, avatar));
+                                    self.addr.do_send(Login(self.id.clone(), name, avatar));
                                 } else {
                                     ctx.sys("头像不能为空".to_owned());
                                 }
@@ -244,7 +244,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                 let msg = Some(v[1].to_owned()).unwrap();
                                 // send message to chat server
                                 self.addr.do_send(server::FullMessage {
-                                    id: self.id,
+                                    id: self.id.clone(),
                                     code: Code::Share,
                                     msg,
                                     room: self.room.clone(),
@@ -258,7 +258,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                 let msg = Some(v[1].to_owned()).unwrap();
                                 // send message to chat server
                                 self.addr.do_send(server::FullMessage {
-                                    id: self.id,
+                                    id: self.id.clone(),
                                     code: Code::Speed,
                                     msg,
                                     room: self.room.clone(),
@@ -272,7 +272,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                                 let msg = Some(v[1].to_owned()).unwrap();
                                 // send message to chat server
                                 self.addr.do_send(server::ClientMessage {
-                                    id: self.id,
+                                    id: self.id.clone(),
                                     msg,
                                     room: self.room.clone(),
                                 })

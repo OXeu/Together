@@ -24,7 +24,7 @@ pub struct Message(pub String);
 
 /// New chat session is created
 #[derive(Message)]
-#[rtype(usize)]
+#[rtype(String)]
 pub struct Connect {
     pub addr: Recipient<Message>,
     pub user: (Option<String>, Option<String>),
@@ -34,7 +34,7 @@ pub struct Connect {
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Disconnect {
-    pub id: usize,
+    pub id: String,
 }
 
 /// Send message to specific room
@@ -42,7 +42,7 @@ pub struct Disconnect {
 #[rtype(result = "()")]
 pub struct ClientMessage {
     /// Id of the client session
-    pub id: usize,
+    pub id: String,
     /// Peer message
     pub msg: String,
     /// Room name
@@ -66,7 +66,7 @@ impl actix::Message for Count {
 /// Implementation is very naïve.
 #[derive(Debug)]
 pub struct ChatServer {
-    sessions: HashMap<usize, (Recipient<Message>, (Option<String>, Option<String>))>,
+    sessions: HashMap<String, (Recipient<Message>, (Option<String>, Option<String>))>,
     rooms: HashMap<String, Room>,
     rng: ThreadRng,
     visitor_count: Arc<AtomicUsize>,
@@ -74,8 +74,8 @@ pub struct ChatServer {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Room {
-    pub roomer: usize,
-    pub members: HashSet<usize>,
+    pub roomer: String,
+    pub members: HashSet<String>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoomInfo {
@@ -84,15 +84,15 @@ pub struct RoomInfo {
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct User {
-    pub id: usize,
+    pub id: String,
     pub name: Option<String>,
     pub avatar: Option<String>,
 }
 
 impl Room {
-    pub fn new(roomer: usize) -> Room {
+    pub fn new(roomer: String) -> Room {
         let mut set = HashSet::new();
-        set.insert(roomer);
+        set.insert(roomer.clone());
         Room {
             roomer,
             members: set,
@@ -117,7 +117,7 @@ impl ChatServer {
 
 impl ChatServer {
     /// Send message to all users in the room
-    fn send_message(&self, room: &str, message: &str, skip_id: usize) {
+    fn send_message(&self, room: &str, message: &str, skip_id: String) {
         if let Some(Room { roomer: _, members }) = self.rooms.get(room) {
             for id in members {
                 if *id != skip_id {
@@ -129,7 +129,7 @@ impl ChatServer {
         }
     }
     /// Send message to specific user
-    fn send(&self, message: &str, uid: usize) {
+    fn send(&self, message: &str, uid: String) {
         if let Some((addr, _)) = self.sessions.get(&uid) {
             addr.do_send(Message(message.to_owned()));
         }
@@ -147,7 +147,7 @@ impl Actor for ChatServer {
 ///
 /// Register new session and assign unique id to this session
 impl Handler<Connect> for ChatServer {
-    type Result = usize;
+    type Result = String;
 
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
         println!("{:?} joined", msg.addr);
@@ -156,8 +156,8 @@ impl Handler<Connect> for ChatServer {
         // self.send_message("main", format!("{:?} joined",msg.addr).as_str(), 0);
 
         // register session with random id
-        let id = self.rng.gen::<usize>();
-        self.sessions.insert(id, (msg.addr, msg.user));
+        let id = self.rng.gen::<u8>().to_string();
+        self.sessions.insert(id.clone(), (msg.addr, msg.user));
 
         // auto join session to main room
         // self.rooms
@@ -175,13 +175,13 @@ impl Handler<Connect> for ChatServer {
 
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct Login(pub usize, pub Option<String>, pub Option<String>);
+pub struct Login(pub String, pub Option<String>, pub Option<String>);
 impl Handler<Login> for ChatServer {
     type Result = ();
 
     fn handle(&mut self, msg: Login, _: &mut Context<Self>) -> Self::Result {
         self.sessions
-            .entry(msg.0)
+            .entry(msg.0.clone())
             .and_modify(|(_, (name, avatar))| {
                 *name = msg.1;
                 *avatar = msg.2;
@@ -195,7 +195,7 @@ impl Handler<Disconnect> for ChatServer {
     type Result = ();
 
     fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
-        let user = self.get_user(msg.id);
+        let user = self.get_user(msg.id.clone());
         println!("{:?} disconnected", user.name.clone());
 
         let mut rooms: Vec<String> = Vec::new();
@@ -212,7 +212,7 @@ impl Handler<Disconnect> for ChatServer {
                     // 转让房主
                     // 后期根据房间设置确认是否转让
                     if let Some(u) = members.clone().into_iter().next() {
-                        *roomer = u;
+                        *roomer = u.clone();
                         new_roomer = Some(u);
                     } else {
                         // 空房间，删除
@@ -234,7 +234,7 @@ impl Handler<Disconnect> for ChatServer {
                     "{} 退出房间",
                     user.name.clone().unwrap_or(msg.id.to_string())
                 )),
-                0,
+                "".to_string(),
             );
         }
         for room in empty_rooms {
@@ -248,7 +248,7 @@ impl Handler<ClientMessage> for ChatServer {
     type Result = ();
 
     fn handle(&mut self, msg: ClientMessage, _: &mut Context<Self>) {
-        let user = self.get_user(msg.id);
+        let user = self.get_user(msg.id.clone());
         self.send_message(
             &msg.room,
             &Data::msg(
@@ -265,7 +265,7 @@ impl Handler<ClientMessage> for ChatServer {
 #[rtype(result = "()")]
 pub struct FullMessage {
     /// Id of the client session
-    pub id: usize,
+    pub id: String,
     /// Peer message
     pub code: Code,
     pub msg: String,
@@ -285,7 +285,7 @@ impl Handler<FullMessage> for ChatServer {
 #[rtype(result = "Option<(Code,String)>")]
 pub struct Progress {
     /// Client ID
-    pub id: usize,
+    pub id: String,
     /// Room name
     pub room: String,
     /// Progress
@@ -352,8 +352,8 @@ impl Handler<ListMembers> for ChatServer {
     ) -> Self::Result {
         if let Some(room) = self.rooms.get(&room_id) {
             Some(RoomInfo {
-                roomer: self.get_user(room.roomer),
-                members: room.members.iter().map(|id| self.get_user(*id)).collect(),
+                roomer: self.get_user(room.roomer.clone()),
+                members: room.members.iter().map(|id| self.get_user(id.clone())).collect(),
             })
         } else {
             None
@@ -362,7 +362,7 @@ impl Handler<ListMembers> for ChatServer {
 }
 
 impl ChatServer {
-    fn get_user(&self, id: usize) -> User {
+    fn get_user(&self, id: String) -> User {
         if let Some((_, (name, avatar))) = self.sessions.get(&id) {
             User {
                 id,
@@ -392,7 +392,7 @@ impl Handler<Count> for ChatServer {
 #[rtype(result = "bool")]
 pub struct Join {
     /// Client ID
-    pub id: usize,
+    pub id: String,
 
     /// Room name
     pub name: String,
@@ -404,7 +404,7 @@ impl Handler<Join> for ChatServer {
 
     fn handle(&mut self, msg: Join, _: &mut Context<Self>) -> Self::Result {
         let Join { id, name } = msg;
-        let user = self.get_user(id);
+        let user = self.get_user(id.clone());
         let mut rooms = Vec::new();
         // remove session from all rooms
         for (n, Room { roomer: _, members }) in &mut self.rooms {
@@ -420,25 +420,25 @@ impl Handler<Join> for ChatServer {
                     "{} 退出房间",
                     user.name.clone().unwrap_or(id.to_string())
                 )),
-                0,
+                "".to_string(),
             );
         }
         let mut roomer = false;
         self.rooms
             .entry(name.clone())
             .and_modify(|Room { roomer: _, members }| {
-                members.insert(id);
+                members.insert(id.clone());
             })
             .or_insert_with(|| {
                 roomer = true;
-                Room::new(id)
+                Room::new(id.clone())
             });
 
         self.send_message(
             &name,
             &Data::sys(format!(
                 "{} 进入房间",
-                user.name.clone().unwrap_or(id.to_string())
+                user.name.clone().unwrap_or(id.clone())
             )),
             id,
         );
